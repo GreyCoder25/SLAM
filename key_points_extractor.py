@@ -11,9 +11,10 @@ class KeyPointsExtractor(object):
     def extract(self, img):
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         corners = cv2.goodFeaturesToTrack(gray, self.num_points, qualityLevel=self.quality, minDistance=self.min_dist)
-        key_points = [cv2.KeyPoint(corner[0][0], corner[0][1], _size=16) for corner in corners]
-        descriptors = self.orb.compute(img, key_points)
-        return corners, descriptors
+        key_points = [cv2.KeyPoint(corner[0][0], corner[0][1], _size=40) for corner in corners]
+        descriptors = self.orb.compute(img, key_points)[1]
+        # return corners, descriptors
+        return key_points, descriptors
 
     def extract_orb(self, img):
         kps, des = self.orb.detectAndCompute(img, None)
