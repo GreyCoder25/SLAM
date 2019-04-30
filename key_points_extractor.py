@@ -13,6 +13,7 @@ class KeyPointsExtractor(object):
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         corners = cv2.goodFeaturesToTrack(gray, self.num_points, qualityLevel=self.quality, minDistance=self.min_dist)
         key_points = [cv2.KeyPoint(corner[0][0], corner[0][1], _size=20) for corner in corners]
+        # TODO: learn how the input list of keypoints can be changed while computing the descriptors
         key_points, descriptors = self.orb.compute(img, key_points)
         # return corners, descriptors
         return key_points, descriptors
