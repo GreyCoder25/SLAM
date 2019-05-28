@@ -89,16 +89,16 @@ class VisualOdometry(object):
 
     def process_frame(self, img, img_index):
         # keypoints extraction and descriptors computation
-        key_points, descriptors = self.kpe.extract(img)
-        # key_points = self.kpe.extract_fast(img)
+        # key_points, descriptors = self.kpe.extract(img)
+        key_points = self.kpe.extract_fast(img)
         print("keypoints: {}".format(len(key_points)))
 
         good_matches = None
         if self.prev_frame_extracts is not None and self.prev_frame is not None:
             # matching
-            good_matches = self.match(key_points, self.prev_frame_extracts['key_points'],
-                       descriptors, self.prev_frame_extracts['descriptors'])
-            # good_matches = self.track(self.prev_frame, img, self.prev_frame_extracts['key_points'])
+            # good_matches = self.match(key_points, self.prev_frame_extracts['key_points'],
+            #            descriptors, self.prev_frame_extracts['descriptors'])
+            good_matches = self.track(self.prev_frame, img, self.prev_frame_extracts['key_points'])
 
             # filtering
             good_matches = np.array(good_matches)
@@ -123,11 +123,15 @@ class VisualOdometry(object):
             if absolute_scale > 0.1:
                 self.t = self.t + absolute_scale * self.R.dot(t.reshape(3))
                 self.R = R.dot(self.R)
+                # self.t = self.t + self.R.dot(t.reshape(3))
+                # self.R = R.dot(self.R)
 
-        self.prev_frame_extracts = {'key_points': key_points, 'descriptors': descriptors}
-        # self.prev_frame_extracts = {'key_points': key_points}
+        # self.prev_frame_extracts = {'key_points': key_points, 'descriptors': descriptors}
+        self.prev_frame_extracts = {'key_points': key_points}
         self.prev_frame = img
 
+        if img_index == 0:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         if good_matches is not None:
             img = self.draw_matches(img, good_matches)
         return img, self.t
@@ -155,14 +159,18 @@ if __name__ == "__main__":
 
     KITTI_SEQUENCE_PATH = '/home/serhiy/data/KITTI_odometry/data_odometry_gray/dataset/sequences/00/image_0/'
     KITTI_ODOMETRY_POSES = '/home/serhiy/data/KITTI_odometry/data_odometry_poses/dataset/poses/00.txt'
+    OUTPUT_VIDEOS_DIR = './output_videos/'
 
     cap = cv2.VideoCapture(KITTI_EXAMPLE)
     # camera parameters
-    W = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    H = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    F = 984
-
+    W = 1241
+    H = 376
     MAP_SIZE = 600
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    driving_video_writer = cv2.VideoWriter(OUTPUT_VIDEOS_DIR + 'Car driving.mp4', fourcc, 15, (W, H))
+    mapping_video_writer = cv2.VideoWriter(OUTPUT_VIDEOS_DIR + 'Trajectory drawing.mp4', fourcc, 15, (MAP_SIZE, MAP_SIZE))
+
     map = np.zeros((MAP_SIZE, MAP_SIZE, 3), dtype=np.uint8)
     camera_params = {'frame_width': W, 'frame_height': H}
     vo = VisualOdometry(camera_params, KITTI_ODOMETRY_POSES)
@@ -170,13 +178,17 @@ if __name__ == "__main__":
     frame_index = 0
 
     NUM_FRAMES = len(os.listdir(KITTI_SEQUENCE_PATH))
-    for frame_index in range(NUM_FRAMES):
+    # for frame_index in range(NUM_FRAMES):
+    for frame_index in range(200):
         frame = cv2.imread(KITTI_SEQUENCE_PATH + str(frame_index).zfill(6)+'.png', 0)
 
         frame, coords = vo.process_frame(frame, frame_index)
         vo.show_img(frame, 'Car driving video')
         drawing_iteration(map, coords, frame_index)
         vo.show_img(map, 'Car trajectory')
+
+        driving_video_writer.write(frame)
+        mapping_video_writer.write(map)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -194,6 +206,7 @@ if __name__ == "__main__":
     #         break
     #     frame_index += 1
 
-
+    driving_video_writer.release()
+    mapping_video_writer.release()
     cap.release()
     cv2.destroyAllWindows()
